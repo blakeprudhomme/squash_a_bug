@@ -1,92 +1,144 @@
 require 'gosu'
 
-W_WIDTH = 800
-W_HEIGHT = 600
-
-GAME_LENGTH = 20
+WIDTH = 800
+HEIGHT = 600
+GAME_SECS = 30
+TEXT = {
+  caption: 'Whack A Ruby!',
+  time: 'TIME:',
+  score: 'SCORE:',
+  over: 'Game Over!',
+  again: 'Press the space bar to play again.'
+}.freeze
 
 class WhackARuby < Gosu::Window
   def initialize
-    super(W_WIDTH, W_HEIGHT)
-    self.caption = 'Whack A Ruby!'
-    @ruby = Gosu::Image.new('ruby.png')
-    @hammer = Gosu::Image.new('hammer.png')
-    @x = 200
-    @y = 200
-    @width = 50
-    @height = 43
-    @velocity_x = 5
-    @velocity_y = 5
-    @visible = 0
-    @hit = 0
-    @font = Gosu::Font.new(30)
-    @score = 0
-    @playing = true
-    @start_time = 0
+    super(WIDTH, HEIGHT)
+    self.caption = TEXT[:caption]
+    set_defaults
   end
 
   def update
-    if @playing
-      @x += @velocity_x
-      @y += @velocity_y
+    return unless @playing
 
-      @velocity_x *= -1 if @x + @width / 2 > W_WIDTH || @x - @width / 2 < 0
-      @velocity_y *= -1 if @y + @height / 2 > W_HEIGHT || @y - @height / 2 < 0
-
-      @visible -= 1
-      @visible = 30 if @visible < -10 && rand < 0.01
-
-      @time_left = (GAME_LENGTH - ((Gosu.milliseconds - @start_time) / 1000))
-      @playing = false if @time_left <= 0
-    end
+    update_target_position
+    update_target_visibility
+    update_time
+    update_play_status
   end
 
   def button_down(id)
-    if @playing
-      if id == Gosu::MsLeft
-        if Gosu.distance(mouse_x, mouse_y, @x, @y) < 50 && @visible.zero?
-          @hit = 1
-          @score += 5
-        else
-          @hit = -1
-          @score -= 1
-        end
-      end
-    else
-      if id = Gosu::KbSpace
-        @playing = true
-        @visible = -10
-        @start_time = Gosu.milliseconds
-        @score = 0
-      end
-    end
+    record_score if @playing && id == Gosu::MsLeft
+    reset_game if !@playing && id == Gosu::KbSpace
   end
 
   def draw
-    @ruby.draw(@x - @width / 2, @y - @height / 2, 1) if @visible > 0
+    end_game unless @playing
 
-    @hammer.draw(mouse_x - 40, mouse_y - 10, 1)
-
-    c = case @hit
-        when 0
-          Gosu::Color::NONE
-        when 1
-          Gosu::Color::GREEN
-        when -1
-          Gosu::Color::RED
-        end
-
-    draw_quad(0, 0, c, W_WIDTH, 0, c, W_WIDTH, W_HEIGHT, c, 0, W_HEIGHT, c)
+    draw_target if should_draw_target?
+    draw_mouse_trigger
+    draw_background
     @hit = 0
+    draw_game_info
+  end
 
-    @font.draw("SCORE: #{@score}", 640, 20, 2)
-    @font.draw("TIME: #{@time_left}", 20, 20, 2)
+  private
 
-    unless @playing
-      @font.draw('Game Over', 300, 300, 3)
-      @font.draw('Press the space bar to play again', 175, 350, 3)
-      @visible = 20
+  def set_defaults
+    @target = Gosu::Image.new('ruby.png')
+    @trigger = Gosu::Image.new('hammer.png')
+    @font = Gosu::Font.new(30)
+    @x = @y = 200
+    @target_width = 50
+    @target_height = 43
+    @velocity_x = @velocity_y = 5
+    @visible = @hit = @start_time = @score = 0
+    @playing = true
+  end
+
+  def draw_background
+    c = background_color
+    draw_quad(0, 0, c, WIDTH, 0, c, WIDTH, HEIGHT, c, 0, HEIGHT, c)
+  end
+
+  def draw_game_info
+    @font.draw("#{TEXT[:time]} #{@time_left}", 20, 20, 2)
+    @font.draw("#{TEXT[:score]} #{@score}", 640, 20, 2)
+  end
+
+  def draw_target
+    @target.draw(@x - @target_width / 2, @y - @target_height / 2, 1)
+  end
+
+  def draw_mouse_trigger
+    @trigger.draw(mouse_x - 40, mouse_y - 10, 1)
+  end
+
+  def should_draw_target?
+    @visible > 0
+  end
+
+  def update_time
+    @time_left = (GAME_SECS - ((Gosu.milliseconds - @start_time) / 1000))
+  end
+
+  def update_play_status
+    @playing = false if @time_left <= 0
+  end
+
+  def update_target_visibility
+    @visible -= 1
+    @visible = 30 if @visible < -10 && rand < 0.01
+  end
+
+  def update_target_position
+    @x += @velocity_x
+    @velocity_x *= -1 if reverse_x?
+
+    @y += @velocity_y
+    @velocity_y *= -1 if reverse_y?
+  end
+
+  def reverse_x?
+    @x + @target_width / 2 > WIDTH || @x - @target_width / 2 < 0
+  end
+
+  def reverse_y?
+    @y + @target_height / 2 > HEIGHT || @y - @target_height / 2 < 0
+  end
+
+  def background_color
+    case @hit
+    when 0
+      Gosu::Color::NONE
+    when 1
+      Gosu::Color::GREEN
+    when -1
+      Gosu::Color::RED
     end
+  end
+
+  def record_score
+    if Gosu.distance(mouse_x, mouse_y, @x, @y) < 25 && @visible != 0
+      @hit = 1
+      @score += 5
+    else
+      @hit = -1
+      @score -= 1
+    end
+  end
+
+  def reset_game
+    @playing = true
+    @visible = -10
+    @start_time = Gosu.milliseconds
+    @score = 0
+  end
+
+  def end_game
+    @font.draw(TEXT[:over], 325, 230, 3)
+    @font.draw(TEXT[:again], 185, 280, 3)
+    @visible = 20
   end
 end
 
