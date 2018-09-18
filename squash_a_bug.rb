@@ -4,14 +4,14 @@ WIDTH = 800
 HEIGHT = 600
 GAME_SECS = 30
 TEXT = {
-  caption: 'Whack A Ruby!',
+  caption: 'Squash A Bug!',
   time: 'TIME:',
   score: 'SCORE:',
   over: 'Game Over!',
   again: 'Press the space bar to play again.'
 }.freeze
 
-class WhackARuby < Gosu::Window
+class SquashABug < Gosu::Window
   def initialize
     super(WIDTH, HEIGHT)
     self.caption = TEXT[:caption]
@@ -45,12 +45,12 @@ class WhackARuby < Gosu::Window
   private
 
   def set_defaults
-    @target = Gosu::Image.new('ruby.png')
+    @target = Gosu::Image.new('bug.png')
     @trigger = Gosu::Image.new('hammer.png')
     @font = Gosu::Font.new(30)
     @x = @y = 200
-    @target_width = 50
-    @target_height = 43
+    @target_width = 74
+    @target_height = 52
     @velocity_x = @velocity_y = 5
     @visible = @hit = @start_time = @score = 0
     @playing = true
@@ -119,7 +119,7 @@ class WhackARuby < Gosu::Window
   end
 
   def record_score
-    if Gosu.distance(mouse_x, mouse_y, @x, @y) < 25 && @visible != 0
+    if Gosu.distance(mouse_x, mouse_y, @x, @y) < 40 && @visible >= 0
       @hit = 1
       @score += 5
     else
@@ -142,4 +142,4 @@ class WhackARuby < Gosu::Window
   end
 end
 
-WhackARuby.new.show
+SquashABug.new.show
